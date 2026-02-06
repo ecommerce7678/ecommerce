@@ -2,19 +2,29 @@ from pathlib import Path
 from decouple import config
 import os
 from datetime import timedelta
+import dj_database_url
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths inside the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-immediately')
+# ===============================
+# SECURITY SETTINGS
+# ===============================
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+SECRET_KEY = config('SECRET_KEY')
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-# Application definition
+ALLOWED_HOSTS = config(
+    'ALLOWED_HOSTS',
+    default='*',
+    cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+)
+
+# ===============================
+# APPLICATIONS
+# ===============================
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -33,10 +43,17 @@ INSTALLED_APPS = [
     'api',
 ]
 
+# ===============================
+# MIDDLEWARE
+# ===============================
+
 MIDDLEWARE = [
-    # CORS सबसे ऊपर होना चाहिए
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+
+    # Whitenoise for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
+
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -48,6 +65,10 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'ecommerce_backend.urls'
 
 WSGI_APPLICATION = 'ecommerce_backend.wsgi.application'
+
+# ===============================
+# TEMPLATES
+# ===============================
 
 TEMPLATES = [
     {
@@ -65,15 +86,28 @@ TEMPLATES = [
     },
 ]
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-    # production में PostgreSQL या MySQL इस्तेमाल करें
-}
+# ===============================
+# DATABASE (NEON POSTGRESQL)
+# ===============================
 
-# Password validation
+DATABASE_URL = config("DATABASE_URL", default=None)
+
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.parse(DATABASE_URL)
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+
+# ===============================
+# PASSWORD VALIDATION
+# ===============================
+
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -81,29 +115,43 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# Internationalization
+# ===============================
+# INTERNATIONALIZATION
+# ===============================
+
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Asia/Kolkata'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# ===============================
+# STATIC FILES
+# ===============================
+
 STATIC_URL = '/static/'
-STATICFILES_DIRS = [BASE_DIR / 'static'] if DEBUG else []
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Media files (user uploaded content)
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
+# ===============================
+# MEDIA FILES
+# ===============================
+
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model
+# ===============================
+# CUSTOM USER MODEL
+# ===============================
+
 AUTH_USER_MODEL = 'api.CustomUser'
 
-# =======================================
-# REST Framework + JWT सेटिंग्स
-# =======================================
+# ===============================
+# REST FRAMEWORK + JWT
+# ===============================
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -127,17 +175,18 @@ SIMPLE_JWT = {
     'BLACKLIST_AFTER_ROTATION': False,
 }
 
-# =======================================
-# CORS सेटिंग्स (Flutter web / mobile के लिए बहुत जरूरी)
-# =======================================
-CORS_ALLOW_ALL_ORIGINS = DEBUG  # development में True, production में False
+# ===============================
+# CORS SETTINGS
+# ===============================
 
-# production में इस्तेमाल करने के लिए (सुरक्षित तरीका)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:8080",           # Flutter web
-#     "http://127.0.0.1:8080",
-#     "https://your-frontend-domain.com",
-# ]
+CORS_ALLOW_ALL_ORIGINS = DEBUG
+
+if not DEBUG:
+    CORS_ALLOWED_ORIGINS = config(
+        "CORS_ALLOWED_ORIGINS",
+        default="",
+        cast=lambda v: [s.strip() for s in v.split(',') if s.strip()]
+    )
 
 CORS_ALLOW_METHODS = [
     "DELETE",
@@ -159,12 +208,12 @@ CORS_ALLOW_HEADERS = [
     "access-control-request-method",
 ]
 
-# preflight request को कैश करने के लिए (OPTIONS request बार-बार न आए)
-CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+CORS_PREFLIGHT_MAX_AGE = 86400
 
-# =======================================
-# Logging (development में उपयोगी)
-# =======================================
+# ===============================
+# LOGGING
+# ===============================
+
 if DEBUG:
     LOGGING = {
         'version': 1,
